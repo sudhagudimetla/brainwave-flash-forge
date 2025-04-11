@@ -3,8 +3,12 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, FileUp } from "lucide-react";
 import { toast } from "sonner";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 type FileUploaderProps = {
   onTextExtracted: (text: string) => void;
@@ -13,6 +17,7 @@ type FileUploaderProps = {
 const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -20,6 +25,7 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
 
     setIsLoading(true);
     setFileName(file.name);
+    setProgress(0);
 
     try {
       // For text files
@@ -28,13 +34,13 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
         onTextExtracted(text);
         toast.success("Text file processed successfully");
       } 
-      // For PDFs we would integrate with a PDF extraction library
-      // This is a simplified version that just reads text files for now
+      // For PDFs
       else if (file.type === "application/pdf") {
-        toast.error("PDF processing will be available soon!");
-        // In a real implementation, we would use a PDF extraction library
-        // const text = await extractTextFromPdf(file);
-        // onTextExtracted(text);
+        setProgress(10);
+        const text = await extractTextFromPdf(file);
+        setProgress(100);
+        onTextExtracted(text);
+        toast.success("PDF processed successfully");
       } else {
         toast.error("Only text and PDF files are supported");
       }
@@ -43,6 +49,7 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
       toast.error("Failed to process file");
     } finally {
       setIsLoading(false);
+      setProgress(0);
     }
   };
 
@@ -61,6 +68,50 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
     });
   };
 
+  const extractTextFromPdf = async (file: File): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // Read the file as ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Load the PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        setProgress(20);
+        
+        const pdf = await loadingTask.promise;
+        setProgress(40);
+        
+        let fullText = "";
+        
+        // Get total number of pages
+        const numPages = pdf.numPages;
+        
+        // Extract text from each page
+        for (let i = 1; i <= numPages; i++) {
+          setProgress(40 + Math.floor((i / numPages) * 50));
+          
+          // Get the page
+          const page = await pdf.getPage(i);
+          
+          // Extract text content
+          const textContent = await page.getTextContent();
+          
+          // Join all the text items
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(" ");
+          
+          fullText += pageText + "\n\n";
+        }
+        
+        resolve(fullText.trim());
+      } catch (error) {
+        console.error("Error extracting text from PDF:", error);
+        reject(new Error("Failed to extract text from PDF"));
+      }
+    });
+  };
+
   return (
     <Card className="w-full">
       <CardContent className="pt-6">
@@ -68,10 +119,10 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
           <div className="flex flex-col items-center justify-center border-2 border-dashed border-primary/20 rounded-lg p-8 text-center">
             <FileText className="h-10 w-10 text-muted-foreground mb-4" />
             <p className="text-sm text-muted-foreground mb-2">
-              Upload a text file to generate flashcards
+              Upload a file to generate flashcards
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              Supported formats: .txt (PDF coming soon)
+              Supported formats: .txt, .pdf
             </p>
             <div className="flex items-center gap-2">
               <Input
@@ -98,9 +149,19 @@ const FileUploader = ({ onTextExtracted }: FileUploaderProps) => {
               </label>
             </div>
             {fileName && (
-              <p className="text-sm font-medium mt-4">
-                {isLoading ? "Processing " : "Processed "} {fileName}
-              </p>
+              <div className="mt-4 w-full max-w-xs">
+                <p className="text-sm font-medium mb-2">
+                  {isLoading ? "Processing " : "Processed "} {fileName}
+                </p>
+                {isLoading && progress > 0 && (
+                  <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-primary h-full transition-all duration-300 ease-in-out"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
