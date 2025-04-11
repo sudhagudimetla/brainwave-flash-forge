@@ -65,18 +65,22 @@ const FlashcardView = ({ cards, onClose }: FlashcardViewProps) => {
       </div>
       
       <div 
-        className="flashcard-container w-full aspect-[4/3] mb-6"
+        className="flashcard-container w-full aspect-[4/3] mb-6 perspective-1000"
         onClick={toggleFlip}
       >
-        <div className={`flashcard relative w-full h-full ${isFlipped ? 'flipped' : ''}`}>
-          <Card className="flashcard-front flex items-center justify-center p-8 absolute inset-0 cursor-pointer shadow-lg border-2 border-primary/20">
+        <div 
+          className={`flashcard relative w-full h-full transition-transform duration-500 transform-style-3d ${
+            isFlipped ? 'rotate-y-180' : ''
+          }`}
+        >
+          <Card className="flashcard-front absolute inset-0 flex items-center justify-center p-8 cursor-pointer shadow-lg border-2 border-primary/20 backface-hidden">
             <div className="text-center">
               <p className="text-xl font-medium select-none">{currentCard.question}</p>
               <p className="text-sm text-muted-foreground mt-4">Click to reveal answer</p>
             </div>
           </Card>
           
-          <Card className="flashcard-back flex items-center justify-center p-8 absolute inset-0 cursor-pointer shadow-lg border-2 border-secondary/20 bg-accent/10">
+          <Card className="flashcard-back absolute inset-0 flex items-center justify-center p-8 cursor-pointer shadow-lg border-2 border-secondary/20 bg-accent/10 backface-hidden rotate-y-180">
             <div className="text-center">
               <p className="text-xl font-medium select-none">{currentCard.answer}</p>
               <p className="text-sm text-muted-foreground mt-4">Click to see question</p>

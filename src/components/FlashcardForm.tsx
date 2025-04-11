@@ -7,11 +7,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Check, X, Sparkles, BookText } from "lucide-react";
+import { Check, X, Sparkles, BookText, FileText } from "lucide-react";
 
 import { useFlashcards } from "@/context/FlashcardContext";
 import { generateSuggestions } from "@/lib/flashcardHelpers";
 import { toast } from "sonner";
+import FileUploader from "./FileUploader";
 
 type FlashcardFormProps = {
   onCancel: () => void;
@@ -68,6 +69,22 @@ const FlashcardForm = ({ onCancel }: FlashcardFormProps) => {
     toast.success(`Generated ${newSuggestions.length} suggestions`);
   };
 
+  const handleTextExtracted = (text: string) => {
+    setTextContent(text);
+    // Automatically generate suggestions when text is extracted
+    setTimeout(() => {
+      if (text.trim().length >= 20) {
+        const newSuggestions = generateSuggestions(text);
+        if (newSuggestions.length > 0) {
+          setSuggestions(newSuggestions);
+          toast.success(`Generated ${newSuggestions.length} flashcard suggestions`);
+        } else {
+          toast.error("Couldn't generate suggestions from the provided text");
+        }
+      }
+    }, 100);
+  };
+
   const applySuggestion = (suggestion: { question: string; answer: string }) => {
     setQuestion(suggestion.question);
     setAnswer(suggestion.answer);
@@ -90,6 +107,10 @@ const FlashcardForm = ({ onCancel }: FlashcardFormProps) => {
             <TabsTrigger value="smart" className="flex-1">
               <Sparkles className="mr-2 h-4 w-4" />
               Smart Generator
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="flex-1">
+              <FileText className="mr-2 h-4 w-4" />
+              Upload File
             </TabsTrigger>
           </TabsList>
         </div>
@@ -183,6 +204,36 @@ const FlashcardForm = ({ onCancel }: FlashcardFormProps) => {
                 </div>
               )}
             </div>
+          </CardContent>
+        </TabsContent>
+        
+        <TabsContent value="upload">
+          <CardContent>
+            <FileUploader onTextExtracted={handleTextExtracted} />
+            
+            {suggestions.length > 0 && (
+              <div className="mt-6 space-y-4">
+                <h3 className="font-medium text-lg">Generated Flashcards</h3>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto p-2">
+                  {suggestions.map((suggestion, index) => (
+                    <div 
+                      key={index}
+                      className="border rounded-md p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <p className="mb-1"><span className="font-medium">Q:</span> {suggestion.question}</p>
+                      <p className="mb-2"><span className="font-medium">A:</span> {suggestion.answer}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => applySuggestion(suggestion)}
+                      >
+                        Use This
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </TabsContent>
         
